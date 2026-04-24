@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -171,6 +172,27 @@ export default function LandingPage() {
     return () => window.removeEventListener("mousemove", handle);
   }, []);
 
+  // Handle Google redirect result when user lands back on this page
+  useEffect(() => {
+    setLoading(true);
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          await createServerSession(result.user);
+          router.push(returnTo);
+          router.refresh();
+        }
+      })
+      .catch((err) => {
+        if (err?.code !== "auth/null-user") {
+          setError("Google sign-in failed. Please try again.");
+          console.error("Redirect result error:", err);
+        }
+      })
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function createServerSession(user: import("firebase/auth").User) {
     const idToken = await user.getIdToken();
     const res = await fetch("/api/auth/session", {
@@ -186,15 +208,15 @@ export default function LandingPage() {
     setError("");
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      await createServerSession(result.user);
-      router.push(returnTo);
-      router.refresh();
+      // signInWithRedirect is more reliable than signInWithPopup:
+      // no popup blockers, works on all browsers and mobile.
+      // The result is handled in the useEffect above when the page reloads.
+      await signInWithRedirect(auth, provider);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
-    } finally {
       setLoading(false);
     }
+    // Note: setLoading(false) is NOT called here — page will redirect to Google
   }
 
   async function handleEmailLogin(e: React.FormEvent) {
