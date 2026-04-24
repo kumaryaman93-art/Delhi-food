@@ -36,6 +36,7 @@ const ENV_VARS = [
   { key: "NEXTAUTH_SECRET",                          value: "dfj-nextauth-secret-dev-key-2024-local" },
   { key: "NEXTAUTH_URL",                             value: "https://delhi-food.vercel.app" },
   { key: "ADMIN_JWT_SECRET",                         value: "dfj-admin-jwt-secret-production-2024" },
+  { key: "ADMIN_EMAILS",                             value: "yaman@gokidconnect.com" },
 ];
 
 // ── Get project list ─────────────────────────────────────────────────────────
@@ -51,55 +52,82 @@ if (!project) {
 }
 console.log(`✅ Found project: ${project.name} (${project.id})`);
 
-// ── Add each env var ──────────────────────────────────────────────────────────
+// ── Fetch existing env var IDs ────────────────────────────────────────────────
+const existingRes = await fetch(
+  `https://api.vercel.com/v9/projects/${project.id}/env`,
+  { headers: { Authorization: `Bearer ${TOKEN}` } }
+);
+const existingData = await existingRes.json();
+const existingMap = {};
+for (const e of existingData.envs ?? []) {
+  if (!existingMap[e.key]) existingMap[e.key] = e.id;
+}
+console.log(`📋 Found ${Object.keys(existingMap).length} existing env vars on Vercel\n`);
+
+// ── Upsert each env var ───────────────────────────────────────────────────────
 let success = 0;
 for (const { key, value } of ENV_VARS) {
-  const res = await fetch(
-    `https://api.vercel.com/v10/projects/${project.id}/env`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        key,
-        value,
-        type: "encrypted",
-        target: ["production", "preview", "development"],
-      }),
-    }
-  );
-  const data = await res.json();
-  if (res.ok) {
-    console.log(`  ✅ ${key}`);
-    success++;
-  } else if (data.error?.code === "ENV_ALREADY_EXISTS") {
-    // Update existing
-    const existing = data.error?.existingEnvVarIds?.[0];
-    if (existing) {
-      const upd = await fetch(
-        `https://api.vercel.com/v10/projects/${project.id}/env/${existing}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ value, target: ["production", "preview", "development"] }),
-        }
-      );
-      if (upd.ok) {
-        console.log(`  🔄 ${key} (updated)`);
-        success++;
-      } else {
-        console.log(`  ❌ ${key} — update failed`);
+  const existingId = existingMap[key];
+
+  if (existingId) {
+    // PATCH to update existing
+    const upd = await fetch(
+      `https://api.vercel.com/v9/projects/${project.id}/env/${existingId}`,
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ value, type: "encrypted", target: ["production", "preview", "development"] }),
       }
+    );
+    if (upd.ok) {
+      console.log(`  🔄 ${key} (updated)`);
+      success++;
+    } else {
+      const err = await upd.json();
+      console.log(`  ❌ ${key} — ${err.error?.message ?? JSON.stringify(err)}`);
     }
   } else {
-    console.log(`  ❌ ${key} — ${data.error?.message ?? JSON.stringify(data)}`);
+    // POST to create new
+    const res = await fetch(
+      `https://api.vercel.com/v10/projects/${project.id}/env`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value, type: "encrypted", target: ["production", "preview", "development"] }),
+      }
+    );
+    const data = await res.json();
+    if (res.ok) {
+      console.log(`  ✅ ${key} (created)`);
+      success++;
+    } else {
+      console.log(`  ❌ ${key} — ${data.error?.message ?? JSON.stringify(data)}`);
+    }
   }
 }
 
 console.log(`\n✅ Done — ${success}/${ENV_VARS.length} variables set.`);
-console.log("\n👉 Now trigger a redeploy from the Vercel dashboard.");
+
+// ── Auto-redeploy the latest production deployment ────────────────────────────
+console.log("\n🚀 Triggering redeploy...");
+const deploysRes = await fetch(
+  `https://api.vercel.com/v6/deployments?projectId=${project.id}&limit=1&target=production`,
+  { headers: { Authorization: `Bearer ${TOKEN}` } }
+);
+const { deployments } = await deploysRes.json();
+const latest = deployments?.[0];
+if (latest) {
+  const redeployRes = await fetch("https://api.vercel.com/v13/deployments", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: project.name, deploymentId: latest.uid, target: "production" }),
+  });
+  if (redeployRes.ok) {
+    const dep = await redeployRes.json();
+    console.log(`✅ Redeploy triggered: https://${dep.url}`);
+  } else {
+    console.log("⚠️  Could not auto-trigger redeploy — go to Vercel dashboard and click Redeploy.");
+  }
+} else {
+  console.log("⚠️  No existing deployment found — push a commit to trigger deploy.");
+}

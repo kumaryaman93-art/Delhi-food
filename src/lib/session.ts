@@ -26,8 +26,13 @@ export async function getSession() {
 
 export async function getAdminSession() {
   const session = await getSession();
-  if (!session) return null;
-  if (!session.admin) return null;
+  if (!session || !session.email) return null;
+  // Check email against ADMIN_EMAILS env var (comma-separated)
+  const allowed = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (!allowed.includes(session.email.toLowerCase())) return null;
   return session;
 }
 

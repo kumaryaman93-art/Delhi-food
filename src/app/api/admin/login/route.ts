@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { createSession, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from "@/lib/session";
 
+// Admin emails are stored in ADMIN_EMAILS env var as a comma-separated list.
+// Example: ADMIN_EMAILS=owner@gmail.com,manager@gmail.com
+function isAdminEmail(email: string): boolean {
+  const raw = process.env.ADMIN_EMAILS ?? "";
+  const allowed = raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return allowed.includes(email.toLowerCase());
+}
+
 export async function POST(req: NextRequest) {
   const { idToken } = await req.json();
 
@@ -10,9 +18,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Verify the token and check admin claim
     const decoded = await adminAuth.verifyIdToken(idToken);
-    if (!decoded.admin) {
+
+    if (!decoded.email || !isAdminEmail(decoded.email)) {
       return NextResponse.json({ error: "Not an admin account" }, { status: 403 });
     }
 
