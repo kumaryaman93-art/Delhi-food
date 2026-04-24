@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingCart, Menu, LogOut, ClipboardList } from "lucide-react";
+import { ShoppingCart, Menu, LogOut, ClipboardList, LayoutDashboard } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
@@ -15,9 +15,10 @@ interface Props {
     email?: string | null;
     image?: string | null;
   } | null;
+  isAdmin?: boolean;
 }
 
-export default function CustomerHeader({ user }: Props) {
+export default function CustomerHeader({ user, isAdmin }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const totalItems = useCartStore((s) => s.totalItems());
   const router = useRouter();
@@ -96,6 +97,16 @@ export default function CustomerHeader({ user }: Props) {
                     <p className="font-medium text-sm text-gray-800 truncate">{user.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user.email}</p>
                   </div>
+                  {isAdmin && (
+                    <Link
+                      href="/admin/login"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold"
+                      style={{ color: "#0d9488", background: "rgba(13,148,136,0.06)" }}
+                    >
+                      <LayoutDashboard className="w-4 h-4" /> Admin Dashboard
+                    </Link>
+                  )}
                   <Link
                     href="/orders"
                     onClick={() => setMenuOpen(false)}
