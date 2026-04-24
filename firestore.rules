@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Categories & Menu Items: public read ──────────────────────────────
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    match /menuItems/{id} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    // ── Orders ────────────────────────────────────────────────────────────
+    match /orders/{orderId} {
+      // Admin can read ALL orders (needed for list queries in dashboard)
+      allow read: if request.auth != null && isAdmin();
+
+      // Customers can read only their own orders (live tracking page)
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+
+      // Admin can update status/ETA
+      allow write: if request.auth != null && isAdmin();
+
+      // Order creation goes through API (admin SDK), not client
+      allow create: if false;
+    }
+
+    // ── Payments: admin only ─────────────────────────────────────────────
+    match /payments/{id} {
+      allow read, write: if request.auth != null && isAdmin();
+    }
+
+    // ── Users: own data only ─────────────────────────────────────────────
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Helper: admin check ───────────────────────────────────────────────
+    // Add your admin UIDs here (Firebase Auth UIDs — find in Firebase Console)
+    function isAdmin() {
+      return request.auth.uid in [
+        "wmYydBiDaSVj7tRUFcdiVCkPgwr2"
+      ];
+    }
+  }
+}

@@ -28,9 +28,18 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# Claude AI session files
+.claude/
+
+# Firebase service account (never commit)
+service-account.json
+*service-account*.json
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma

@@ -1,0 +1,48 @@
+{
+  "name": "Delhi Food Junction",
+  "short_name": "DFJ",
+  "description": "100% Pure Vegetarian Restaurant — Order Online",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#0f2027",
+  "theme_color": "#0d9488",
+  "orientation": "portrait-primary",
+  "categories": ["food", "restaurants"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "View Menu",
+      "url": "/menu",
+      "description": "Browse all dishes"
+    },
+    {
+      "name": "My Orders",
+      "url": "/orders",
+      "description": "Track your orders"
+    }
+  ]
+}

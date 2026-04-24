@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  googleId     String?  @unique @map("google_id")
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String?  @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  fcmToken     String?  @map("fcm_token")
+  authProvider String   @default("email") @map("auth_provider")
+  createdAt    DateTime @default(now()) @map("created_at")
+  lastLogin    DateTime @default(now()) @map("last_login")
+  orders       Order[]
+
+  @@map("users")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admins")
+}
+
+model Category {
+  id           String     @id @default(cuid())
+  name         String
+  emoji        String?
+  displayOrder Int        @default(0) @map("display_order")
+  isActive     Boolean    @default(true) @map("is_active")
+  items        MenuItem[]
+
+  @@map("categories")
+}
+
+model MenuItem {
+  id           String      @id @default(cuid())
+  categoryId   String      @map("category_id")
+  category     Category    @relation(fields: [categoryId], references: [id])
+  name         String
+  description  String?
+  price        Decimal     @db.Decimal(10, 2)
+  imageUrl     String?     @map("image_url")
+  isVeg        Boolean     @default(true) @map("is_veg")
+  isAvailable  Boolean     @default(true) @map("is_available")
+  isFeatured   Boolean     @default(false) @map("is_featured")
+  isNew        Boolean     @default(false) @map("is_new")
+  displayOrder Int         @default(0) @map("display_order")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  orderItems   OrderItem[]
+
+  @@map("menu_items")
+}
+
+model Order {
+  id                  String      @id @default(cuid())
+  orderNumber         String      @unique @map("order_number")
+  userId              String      @map("user_id")
+  user                User        @relation(fields: [userId], references: [id])
+  status              OrderStatus @default(NEW)
+  orderType           OrderType   @map("order_type")
+  tableNumber         String?     @map("table_number")
+  deliveryAddress     String?     @map("delivery_address")
+  subtotal            Decimal     @db.Decimal(10, 2)
+  tax                 Decimal     @db.Decimal(10, 2)
+  packagingFee        Decimal     @default(0) @map("packaging_fee") @db.Decimal(10, 2)
+  total               Decimal     @db.Decimal(10, 2)
+  specialInstructions String?     @map("special_instructions")
+  etaMinutes          Int?        @map("eta_minutes")
+  etaSetAt            DateTime?   @map("eta_set_at")
+  items               OrderItem[]
+  payment             Payment?
+  createdAt           DateTime    @default(now()) @map("created_at")
+  confirmedAt         DateTime?   @map("confirmed_at")
+  readyAt             DateTime?   @map("ready_at")
+  completedAt         DateTime?   @map("completed_at")
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String   @map("order_id")
+  order      Order    @relation(fields: [orderId], references: [id])
+  menuItemId String   @map("menu_item_id")
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  quantity   Int
+  total      Decimal  @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String        @unique @map("order_id")
+  order             Order         @relation(fields: [orderId], references: [id])
+  razorpayOrderId   String?       @unique @map("razorpay_order_id")
+  razorpayPaymentId String?       @map("razorpay_payment_id")
+  amount            Decimal       @db.Decimal(10, 2)
+  method            String?
+  status            PaymentStatus @default(PENDING)
+  paidAt            DateTime?     @map("paid_at")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  @@map("payments")
+}
+
+model Settings {
+  id              String  @id @default("1")
+  restaurantName  String  @default("Delhi Food Junction") @map("restaurant_name")
+  tagline         String  @default("100% Pure Vegetarian")
+  about           String  @default("Best Continental Restaurant in Ludhiana Punjab India")
+  logoUrl         String? @map("logo_url")
+  heroImageUrl    String? @map("hero_image_url")
+  phone           String  @default("099147 55509")
+  address         String  @default("Netaji Nagar, Netaji Colony, Salem Tabri, Ludhiana, Punjab 141008")
+  gstRate         Decimal @default(5) @map("gst_rate") @db.Decimal(5, 2)
+  packagingFee    Decimal @default(20) @map("packaging_fee") @db.Decimal(10, 2)
+  defaultEta      Int     @default(20) @map("default_eta")
+  dineInEnabled   Boolean @default(true) @map("dine_in_enabled")
+  takeawayEnabled Boolean @default(true) @map("takeaway_enabled")
+  deliveryEnabled Boolean @default(false) @map("delivery_enabled")
+  codEnabled      Boolean @default(false) @map("cod_enabled")
+  soundEnabled    Boolean @default(true) @map("sound_enabled")
+
+  @@map("settings")
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
