@@ -1,4 +1,5 @@
 import { adminDb } from "@/lib/firebase-admin";
+import { unstable_cache } from "next/cache";
 
 export interface Category {
   id: string;
@@ -32,8 +33,9 @@ export interface CategoryWithItems extends Category {
   items: MenuItem[];
 }
 
-export async function getMenuCategories(): Promise<Category[]> {
-  // Sort in-memory to avoid needing a composite Firestore index
+// ─── Raw fetchers (called by the cached wrappers below) ───────────────────────
+
+async function _getMenuCategories(): Promise<Category[]> {
   const snap = await adminDb
     .collection("categories")
     .where("isActive", "==", true)
@@ -42,20 +44,51 @@ export async function getMenuCategories(): Promise<Category[]> {
   return cats.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 }
 
-export async function getMenuWithItems(): Promise<CategoryWithItems[]> {
-  const categories = await getMenuCategories();
-  const result: CategoryWithItems[] = [];
+async function _getMenuWithItems(): Promise<CategoryWithItems[]> {
+  // ── 2 parallel queries instead of 1 + N sequential ────────────────────────
+  // Before: 1 categories query + 1 query PER category = 21 round-trips (slow!)
+  // After:  fetch ALL categories + ALL items in parallel = 2 round-trips (fast!)
+  const [categoriesSnap, itemsSnap] = await Promise.all([
+    adminDb.collection("categories").where("isActive", "==", true).get(),
+    adminDb.collection("menuItems").where("isAvailable", "==", true).get(),
+  ]);
 
-  for (const cat of categories) {
-    const itemsSnap = await adminDb
-      .collection("menuItems")
-      .where("categoryId", "==", cat.id)
-      .where("isAvailable", "==", true)
-      .get();
-    const items = itemsSnap.docs
-      .map((d) => ({ id: d.id, ...d.data() } as MenuItem))
-      .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-    result.push({ ...cat, items });
+  const categories = categoriesSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Category))
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+
+  // Group all items by categoryId in memory
+  const byCategory: Record<string, MenuItem[]> = {};
+  for (const doc of itemsSnap.docs) {
+    const item = { id: doc.id, ...doc.data() } as MenuItem;
+    if (!byCategory[item.categoryId]) byCategory[item.categoryId] = [];
+    byCategory[item.categoryId].push(item);
   }
-  return result;
+
+  // Sort each category's items by displayOrder
+  for (const arr of Object.values(byCategory)) {
+    arr.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+  }
+
+  return categories.map((cat) => ({
+    ...cat,
+    items: byCategory[cat.id] ?? [],
+  }));
 }
+
+// ─── Cached exports ────────────────────────────────────────────────────────────
+// Results are cached for 5 minutes (300s). Subsequent requests within the TTL
+// are served instantly from the Next.js data cache — no Firestore round-trip.
+// Cache is invalidated automatically on the next request after TTL expires.
+
+export const getMenuCategories = unstable_cache(
+  _getMenuCategories,
+  ["menu-categories"],
+  { revalidate: 300 }
+);
+
+export const getMenuWithItems = unstable_cache(
+  _getMenuWithItems,
+  ["menu-with-items"],
+  { revalidate: 300 }
+);
