@@ -24,15 +24,19 @@ export async function getSession() {
   }
 }
 
+const HARDCODED_ADMIN_EMAILS = ["admin@delhifood.com"];
+
+function isAdminEmail(email: string): boolean {
+  const raw = process.env.ADMIN_EMAILS ?? "";
+  const fromEnv = raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const allowed = fromEnv.length > 0 ? fromEnv : HARDCODED_ADMIN_EMAILS;
+  return allowed.includes(email.toLowerCase());
+}
+
 export async function getAdminSession() {
   const session = await getSession();
   if (!session || !session.email) return null;
-  // Check email against ADMIN_EMAILS env var (comma-separated)
-  const allowed = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (!allowed.includes(session.email.toLowerCase())) return null;
+  if (!isAdminEmail(session.email)) return null;
   return session;
 }
 

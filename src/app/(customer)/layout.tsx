@@ -1,12 +1,13 @@
 import { getSession } from "@/lib/session";
 import CustomerHeader from "@/components/customer/header";
 
+const HARDCODED_ADMIN_EMAILS = ["admin@delhifood.com"];
+
 function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
-  const allowed = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
+  const raw = process.env.ADMIN_EMAILS ?? "";
+  const fromEnv = raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const allowed = fromEnv.length > 0 ? fromEnv : HARDCODED_ADMIN_EMAILS;
   return allowed.includes(email.toLowerCase());
 }
 

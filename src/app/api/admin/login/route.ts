@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { createSession, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from "@/lib/session";
 
-// Admin emails are stored in ADMIN_EMAILS env var as a comma-separated list.
-// Example: ADMIN_EMAILS=owner@gmail.com,manager@gmail.com
+// Admin emails: ADMIN_EMAILS env var (comma-separated) OR hardcoded fallback.
+const HARDCODED_ADMIN_EMAILS = ["admin@delhifood.com"];
+
 function isAdminEmail(email: string): boolean {
   const raw = process.env.ADMIN_EMAILS ?? "";
-  const allowed = raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const fromEnv = raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const allowed = fromEnv.length > 0 ? fromEnv : HARDCODED_ADMIN_EMAILS;
   return allowed.includes(email.toLowerCase());
 }
 
