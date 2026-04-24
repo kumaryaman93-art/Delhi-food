@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   signInWithRedirect,
-  getRedirectResult,
+  onAuthStateChanged,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -172,24 +172,37 @@ export default function LandingPage() {
     return () => window.removeEventListener("mousemove", handle);
   }, []);
 
-  // Handle Google redirect result when user lands back on this page
+  // After Google redirect, Firebase restores the signed-in user via persistence.
+  // onAuthStateChanged fires once that restoration is complete — more reliable
+  // than getRedirectResult which can lose state with Next.js router transitions.
   useEffect(() => {
+    let settled = false;
     setLoading(true);
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result?.user) {
-          await createServerSession(result.user);
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (settled) return;
+      settled = true;
+
+      if (firebaseUser) {
+        // User is signed in (came back from Google redirect OR already had a session)
+        try {
+          await createServerSession(firebaseUser);
           router.push(returnTo);
           router.refresh();
+        } catch (err) {
+          console.error("Session creation failed:", err);
+          setError("Sign-in failed. Please try again.");
+          setLoading(false);
         }
-      })
-      .catch((err) => {
-        if (err?.code !== "auth/null-user") {
-          setError("Google sign-in failed. Please try again.");
-          console.error("Redirect result error:", err);
-        }
-      })
-      .finally(() => setLoading(false));
+      } else {
+        // No user — show the login form normally
+        setLoading(false);
+      }
+
+      unsubscribe();
+    });
+
+    return () => { settled = true; unsubscribe(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
