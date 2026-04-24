@@ -40,10 +40,11 @@ service cloud.firestore {
     }
 
     // ── Helper: admin check ───────────────────────────────────────────────
-    // Add your admin UIDs here (Firebase Auth UIDs — find in Firebase Console)
+    // Firebase Auth UIDs for admin accounts
     function isAdmin() {
       return request.auth.uid in [
-        "wmYydBiDaSVj7tRUFcdiVCkPgwr2"
+        "wmYydBiDaSVj7tRUFcdiVCkPgwr2",  // original admin
+        "I13kV1PTuBOsfFlxTP6FBClBkHH3"   // admin@delhifood.com
       ];
     }
   }
