@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   signInWithRedirect,
-  onAuthStateChanged,
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -172,49 +172,55 @@ export default function LandingPage() {
     return () => window.removeEventListener("mousemove", handle);
   }, []);
 
-  // onAuthStateChanged can fire with null FIRST while Firebase is still
-  // processing the redirect result. We must NOT unsubscribe on null —
-  // keep listening until Firebase finishes and fires with the actual user.
+  // After signInWithRedirect, Firebase stores the pending OAuth result.
+  // We MUST call getRedirectResult() to consume it and complete sign-in.
+  // onAuthStateChanged alone does NOT process the redirect — it only fires
+  // based on the existing cached session (which is null before redirect completes).
   useEffect(() => {
-    let done = false;
-    setLoading(true);
+    let cancelled = false;
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (done) return;
-
-      if (firebaseUser) {
-        // Got a user (from Google redirect OR existing session)
-        done = true;
-        unsubscribe();
-        try {
-          await createServerSession(firebaseUser);
-          // Full page navigation — more reliable than router.push after OAuth redirect
-          window.location.href = returnTo;
-        } catch (err) {
-          console.error("Session creation failed:", err);
-          setError("Sign-in failed. Please try again.");
-          setLoading(false);
-          done = false; // allow retry
+    async function checkRedirectResult() {
+      setLoading(true);
+      try {
+        const result = await getRedirectResult(auth);
+        if (cancelled) return;
+        if (result?.user) {
+          // Google OAuth redirect completed — create server session and navigate
+          await createServerSession(result.user);
+          if (!cancelled) window.location.href = returnTo;
+          return; // stay in loading state while navigating
         }
-      } else {
-        // null — Firebase may still be processing redirect, keep listening.
-        // Only hide the spinner so the form is usable for email login.
-        setLoading(false);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const code = (err as { code?: string }).code ?? "";
+        console.error("Google redirect result error:", code, err);
+        if (code === "auth/unauthorized-domain") {
+          setError("This domain is not authorized. Please contact support.");
+        } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+          // user cancelled — no error shown, just reset
+        } else {
+          setError("Google sign-in failed. Please try again.");
+        }
       }
-    });
+      if (!cancelled) setLoading(false);
+    }
 
-    return () => { done = true; unsubscribe(); };
+    checkRedirectResult();
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function createServerSession(user: import("firebase/auth").User) {
-    const idToken = await user.getIdToken();
+    const idToken = await user.getIdToken(/* forceRefresh */ true);
     const res = await fetch("/api/auth/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
     });
-    if (!res.ok) throw new Error("Session creation failed");
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? `Session API returned ${res.status}`);
+    }
   }
 
   async function handleGoogle() {
@@ -222,15 +228,14 @@ export default function LandingPage() {
     setError("");
     try {
       const provider = new GoogleAuthProvider();
-      // signInWithRedirect is more reliable than signInWithPopup:
-      // no popup blockers, works on all browsers and mobile.
-      // The result is handled in the useEffect above when the page reloads.
+      // signInWithRedirect leaves the page — getRedirectResult() in the
+      // useEffect above will pick up the result when the page reloads.
       await signInWithRedirect(auth, provider);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
       setLoading(false);
     }
-    // Note: setLoading(false) is NOT called here — page will redirect to Google
+    // setLoading(false) intentionally omitted — browser is navigating away
   }
 
   async function handleEmailLogin(e: React.FormEvent) {
@@ -240,11 +245,17 @@ export default function LandingPage() {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       await createServerSession(result.user);
-      router.push(returnTo);
-      router.refresh();
-    } catch {
-      setError("Invalid email or password");
-    } finally {
+      // Full navigation so the server-rendered header picks up the new session
+      window.location.href = returnTo;
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setError("Incorrect email or password.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Too many attempts. Please wait a moment and try again.");
+      } else {
+        setError("Sign-in failed. Please try again.");
+      }
       setLoading(false);
     }
   }
