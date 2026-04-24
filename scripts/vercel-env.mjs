@@ -36,7 +36,7 @@ const ENV_VARS = [
   { key: "NEXTAUTH_SECRET",                          value: "dfj-nextauth-secret-dev-key-2024-local" },
   { key: "NEXTAUTH_URL",                             value: "https://delhi-food.vercel.app" },
   { key: "ADMIN_JWT_SECRET",                         value: "dfj-admin-jwt-secret-production-2024" },
-  { key: "ADMIN_EMAILS",                             value: "yaman@gokidconnect.com" },
+  { key: "ADMIN_EMAILS",                             value: "admin@delhifood.com" },
 ];
 
 // ── Get project list ─────────────────────────────────────────────────────────
