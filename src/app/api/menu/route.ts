@@ -1,27 +1,24 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { adminDb } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const categories = await prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-    include: {
-      items: {
-        where: { isAvailable: true },
-        orderBy: { displayOrder: "asc" },
-      },
-    },
+  const [catSnap, itemsSnap] = await Promise.all([
+    adminDb.collection("categories").where("isActive", "!=", false).orderBy("isActive").orderBy("displayOrder").get(),
+    adminDb.collection("menuItems").where("isAvailable", "==", true).orderBy("displayOrder").get(),
+  ]);
+
+  type Item = Record<string, unknown> & { id: string; price: number; categoryId?: string };
+  const categories = catSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }));
+  const items: Item[] = itemsSnap.docs.map((d) => {
+    const data = d.data() as Record<string, unknown>;
+    return { id: d.id, ...data, price: Number(data.price) };
   });
 
-  // Convert Decimal to number for JSON serialization
   const data = categories.map((cat) => ({
     ...cat,
-    items: cat.items.map((item) => ({
-      ...item,
-      price: Number(item.price),
-    })),
+    items: items.filter((i) => i.categoryId === cat.id),
   }));
 
   return NextResponse.json(data);

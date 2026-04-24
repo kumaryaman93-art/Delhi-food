@@ -1,27 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFromRequest } from "@/lib/admin-auth";
-import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/session";
+import { adminDb } from "@/lib/firebase-admin";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const admin = getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const item = await prisma.menuItem.update({
-    where: { id: params.id },
-    data: body,
+  await adminDb.collection("menuItems").doc(params.id).update({
+    ...body,
+    price: body.price !== undefined ? Number(body.price) : undefined,
+    updatedAt: new Date().toISOString(),
   });
 
-  return NextResponse.json({ ...item, price: Number(item.price) });
+  return NextResponse.json({ success: true });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const admin = getAdminFromRequest(req);
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await prisma.menuItem.update({
-    where: { id: params.id },
-    data: { isAvailable: false },
+  await adminDb.collection("menuItems").doc(params.id).update({
+    isAvailable: false,
+    updatedAt: new Date().toISOString(),
   });
 
   return NextResponse.json({ success: true });
