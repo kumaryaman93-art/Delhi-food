@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -172,43 +171,8 @@ export default function LandingPage() {
     return () => window.removeEventListener("mousemove", handle);
   }, []);
 
-  // After signInWithRedirect, Firebase stores the pending OAuth result.
-  // We MUST call getRedirectResult() to consume it and complete sign-in.
-  // onAuthStateChanged alone does NOT process the redirect — it only fires
-  // based on the existing cached session (which is null before redirect completes).
-  useEffect(() => {
-    let cancelled = false;
-
-    async function checkRedirectResult() {
-      setLoading(true);
-      try {
-        const result = await getRedirectResult(auth);
-        if (cancelled) return;
-        if (result?.user) {
-          // Google OAuth redirect completed — create server session and navigate
-          await createServerSession(result.user);
-          if (!cancelled) window.location.href = returnTo;
-          return; // stay in loading state while navigating
-        }
-      } catch (err: unknown) {
-        if (cancelled) return;
-        const code = (err as { code?: string }).code ?? "";
-        console.error("Google redirect result error:", code, err);
-        if (code === "auth/unauthorized-domain") {
-          setError("This domain is not authorized. Please contact support.");
-        } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-          // user cancelled — no error shown, just reset
-        } else {
-          setError("Google sign-in failed. Please try again.");
-        }
-      }
-      if (!cancelled) setLoading(false);
-    }
-
-    checkRedirectResult();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // No redirect-result handling needed — we use signInWithPopup which
+  // resolves directly in the same call without a page reload.
 
   async function createServerSession(user: import("firebase/auth").User) {
     const idToken = await user.getIdToken(/* forceRefresh */ true);
@@ -228,14 +192,23 @@ export default function LandingPage() {
     setError("");
     try {
       const provider = new GoogleAuthProvider();
-      // signInWithRedirect leaves the page — getRedirectResult() in the
-      // useEffect above will pick up the result when the page reloads.
-      await signInWithRedirect(auth, provider);
+      // signInWithPopup opens a small window — result comes back immediately
+      // in the same call, no page redirect needed.
+      const result = await signInWithPopup(auth, provider);
+      await createServerSession(result.user);
+      window.location.href = returnTo;
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        // user dismissed the popup — silently reset
+      } else if (code === "auth/unauthorized-domain") {
+        setError("Domain not authorized in Firebase. Please contact support.");
+      } else {
+        setError("Google sign-in failed. Please try again.");
+        console.error("Google sign-in error:", code, err);
+      }
       setLoading(false);
     }
-    // setLoading(false) intentionally omitted — browser is navigating away
   }
 
   async function handleEmailLogin(e: React.FormEvent) {
