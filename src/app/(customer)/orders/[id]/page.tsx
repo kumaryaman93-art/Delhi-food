@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getSession } from "@/lib/session";
 import { adminDb } from "@/lib/firebase-admin";
 import { notFound, redirect } from "next/navigation";

@@ -2,7 +2,7 @@ import { formatINR } from "@/lib/utils";
 import { getTodayOrders } from "@/lib/firestore/orders";
 import LiveOrdersList from "@/components/admin/live-orders-list";
 
-export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
   const todayOrders = await getTodayOrders();

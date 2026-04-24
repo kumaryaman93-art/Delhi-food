@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import MenuPageClient from "@/components/customer/menu-page";
 import { getMenuWithItems } from "@/lib/firestore/menu";
 
