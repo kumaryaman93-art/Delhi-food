@@ -6,6 +6,8 @@ import { useCartStore } from "@/store/cart";
 import { formatINR } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
+import VariantSelector from "@/components/customer/variant-selector";
+import { MenuVariant } from "@/types";
 
 interface MenuItem {
   id: string;
@@ -17,6 +19,7 @@ interface MenuItem {
   isFeatured: boolean;
   isNew?: boolean;
   displayOrder: number;
+  variants?: MenuVariant[];
 }
 
 interface Category {
@@ -30,12 +33,11 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
   const [search, setSearch] = useState("");
   const [vegOnly, setVegOnly] = useState(false);
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id ?? "");
+  const [variantItem, setVariantItem] = useState<MenuItem | null>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pillsRef = useRef<HTMLDivElement>(null);
   const scrollingRef = useRef(false);
-  const { addItem, items: cartItems, totalItems, subtotal, updateQuantity } = useCartStore();
-
-  const getQty = (id: string) => cartItems.find((i) => i.id === id)?.quantity ?? 0;
+  const { addItem, totalItems, subtotal, updateQuantity, getQty } = useCartStore();
 
   function scrollToCategory(catId: string) {
     setActiveCategory(catId);
@@ -209,10 +211,18 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
                   </div>
                 </div>
 
-                {/* Items — 1 col mobile, 2 col on md+, 2 col on lg (sidebar takes space) */}
+                {/* Items — 1 col mobile, 2 col on md+ */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {cat.items.map((item) => {
-                    const qty = getQty(item.id);
+                    const hasVariants = item.variants && item.variants.length > 0;
+                    // For variant items: show total qty across all variants
+                    const qty = hasVariants
+                      ? (item.variants ?? []).reduce((sum, v) => sum + getQty(item.id, v.label), 0)
+                      : getQty(item.id);
+                    const minPrice = hasVariants
+                      ? Math.min(...(item.variants ?? []).map((v) => v.price))
+                      : item.price;
+
                     return (
                       <div
                         key={item.id}
@@ -222,24 +232,13 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
                         {/* Food image */}
                         <div className="relative flex-shrink-0" style={{ width: "96px", height: "96px" }}>
                           {item.imageUrl ? (
-                            <Image
-                              src={item.imageUrl}
-                              alt={item.name}
-                              fill
-                              unoptimized
-                              className="object-cover"
-                              loading="lazy"
-                            />
+                            <Image src={item.imageUrl} alt={item.name} fill unoptimized className="object-cover" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-4xl"
-                              style={{ background: "linear-gradient(135deg, #f0fdf4, #d1fae5)" }}>
-                              🍽️
-                            </div>
+                              style={{ background: "linear-gradient(135deg, #f0fdf4, #d1fae5)" }}>🍽️</div>
                           )}
                           <div className="absolute top-1.5 left-1.5">
-                            <div className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center ${
-                              item.isVeg ? "border-green-700 bg-green-500" : "border-red-700 bg-red-500"
-                            }`} />
+                            <div className={`w-4 h-4 rounded-sm border-2 ${item.isVeg ? "border-green-700 bg-green-500" : "border-red-700 bg-red-500"}`} />
                           </div>
                         </div>
 
@@ -247,46 +246,58 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
                         <div className="flex-1 min-w-0 py-3 pr-3">
                           <div className="flex items-start gap-1 flex-wrap mb-0.5">
                             {item.isFeatured && (
-                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold"
-                                style={{ background: "#fef3c7", color: "#b45309" }}>⭐ Popular</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: "#fef3c7", color: "#b45309" }}>⭐ Popular</span>
                             )}
                             {item.isNew && (
-                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold"
-                                style={{ background: "#eff6ff", color: "#1d4ed8" }}>✨ New</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: "#eff6ff", color: "#1d4ed8" }}>✨ New</span>
                             )}
                           </div>
                           <h3 className="font-bold text-gray-900 text-sm leading-tight mb-0.5">{item.name}</h3>
                           {item.description && (
-                            <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-2">{item.description}</p>
+                            <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-1">{item.description}</p>
+                          )}
+
+                          {/* Variant size labels */}
+                          {hasVariants && (
+                            <div className="flex gap-1 flex-wrap mb-1">
+                              {(item.variants ?? []).map((v) => (
+                                <span key={v.label} className="text-xs px-1.5 py-0.5 rounded-md font-medium"
+                                  style={{ background: "#f0fdfa", color: "#0f766e" }}>
+                                  {v.label}: {formatINR(v.price)}
+                                </span>
+                              ))}
+                            </div>
                           )}
 
                           <div className="flex items-center justify-between mt-auto">
                             <span className="font-black text-base" style={{ color: "#0d9488" }}>
-                              {formatINR(item.price)}
+                              {hasVariants ? `From ${formatINR(minPrice)}` : formatINR(item.price)}
                             </span>
 
-                            {qty === 0 ? (
+                            {/* ADD / CHOOSE button */}
+                            {hasVariants ? (
                               <button
-                                onClick={() => addItem({ id: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl, isVeg: item.isVeg })}
+                                onClick={() => setVariantItem(item)}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-bold text-white transition-transform active:scale-95"
+                                style={{ background: "linear-gradient(90deg, #0d9488, #0f766e)" }}>
+                                {qty > 0 ? `${qty} · Add` : "Choose"}
+                              </button>
+                            ) : qty === 0 ? (
+                              <button
+                                onClick={() => addItem({ id: item.id, itemId: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl, isVeg: item.isVeg })}
                                 className="flex items-center gap-1 px-4 py-1.5 rounded-xl text-sm font-bold text-white transition-transform active:scale-95"
                                 style={{ background: "linear-gradient(90deg, #0d9488, #0f766e)" }}>
                                 + Add
                               </button>
                             ) : (
                               <div className="flex items-center gap-1.5">
-                                <button
-                                  onClick={() => updateQuantity(item.id, qty - 1)}
+                                <button onClick={() => updateQuantity(item.id, qty - 1)}
                                   className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-base"
-                                  style={{ background: "#0d9488" }}>
-                                  −
-                                </button>
+                                  style={{ background: "#0d9488" }}>−</button>
                                 <span className="font-black text-gray-900 w-5 text-center text-sm">{qty}</span>
-                                <button
-                                  onClick={() => addItem({ id: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl, isVeg: item.isVeg })}
+                                <button onClick={() => addItem({ id: item.id, itemId: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl, isVeg: item.isVeg })}
                                   className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-base"
-                                  style={{ background: "#0d9488" }}>
-                                  +
-                                </button>
+                                  style={{ background: "#0d9488" }}>+</button>
                               </div>
                             )}
                           </div>
@@ -315,6 +326,28 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
           </div>
         </div>
       </div>
+
+      {/* ── VARIANT SELECTOR MODAL ── */}
+      {variantItem && (
+        <VariantSelector
+          itemName={variantItem.name}
+          isVeg={variantItem.isVeg}
+          variants={variantItem.variants ?? []}
+          onClose={() => setVariantItem(null)}
+          onSelect={(v: MenuVariant) => {
+            const cartId = `${variantItem.id}::${v.label}`;
+            addItem({
+              id: cartId,
+              itemId: variantItem.id,
+              name: variantItem.name,
+              price: v.price,
+              imageUrl: variantItem.imageUrl,
+              isVeg: variantItem.isVeg,
+              variant: v.label,
+            });
+          }}
+        />
+      )}
 
       {/* ── FLOATING CART BAR (mobile only — desktop shows inline) ── */}
       {cartTotal > 0 && (

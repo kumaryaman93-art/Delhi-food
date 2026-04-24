@@ -18,6 +18,7 @@ interface CartStore {
   setSpecialInstructions: (s: string) => void;
   totalItems: () => number;
   subtotal: () => number;
+  getQty: (itemId: string, variant?: string) => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -69,8 +70,13 @@ export const useCartStore = create<CartStore>()(
       setSpecialInstructions: (s) => set({ specialInstructions: s }),
 
       totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
-      subtotal: () =>
-        get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+      subtotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+
+      // Get quantity for a specific item+variant combo
+      getQty: (itemId, variant) => {
+        const id = variant ? `${itemId}::${variant}` : itemId;
+        return get().items.find((i) => i.id === id)?.quantity ?? 0;
+      },
     }),
     { name: "dfj-cart" }
   )

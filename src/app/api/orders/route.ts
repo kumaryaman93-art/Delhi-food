@@ -34,10 +34,11 @@ export async function POST(req: NextRequest) {
     tableNumber: tableNumber || null,
     deliveryAddress: deliveryAddress || null,
     specialInstructions: specialInstructions || null,
-    items: items.map((item: { id: string; name: string; price: number; quantity: number }) => ({
-      id: item.id,
-      menuItemId: item.id,
+    items: items.map((item: { id: string; itemId?: string; name: string; price: number; quantity: number; variant?: string }) => ({
+      id: item.itemId ?? item.id,
+      menuItemId: item.itemId ?? item.id,
       name: item.name,
+      variant: item.variant ?? null,
       price: item.price,
       quantity: item.quantity,
       total: item.price * item.quantity,

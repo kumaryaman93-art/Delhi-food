@@ -9,13 +9,20 @@ export type OrderStatus =
 export type OrderType = "DINE_IN" | "TAKEAWAY" | "DELIVERY";
 export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
+export interface MenuVariant {
+  label: string;  // "Half", "Full", "Small", "Medium", "Large"
+  price: number;
+}
+
 export interface CartItem {
-  id: string;
+  id: string;        // composite key: `${itemId}::${variant}` or just itemId
+  itemId: string;    // actual Firestore menu item ID
   name: string;
   price: number;
   quantity: number;
   imageUrl?: string | null;
   isVeg: boolean;
+  variant?: string;  // "Half", "Full", "Small", etc.
 }
 
 export interface MenuItemType {

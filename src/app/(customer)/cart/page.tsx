@@ -65,6 +65,10 @@ export default function CartPage() {
                     <span className={`w-2.5 h-2.5 rounded-sm border flex-shrink-0 ${item.isVeg ? "bg-green-500 border-green-700" : "bg-red-500 border-red-700"}`} />
                     <p className="font-semibold text-sm text-gray-800 truncate">{item.name}</p>
                   </div>
+                  {item.variant && (
+                    <span className="inline-block text-xs px-1.5 py-0.5 rounded mb-0.5 font-medium"
+                      style={{ background: "#f0fdfa", color: "#0f766e" }}>{item.variant}</span>
+                  )}
                   <p className="text-teal-700 font-bold text-sm">{formatINR(item.price)}</p>
                 </div>
                 <div className="flex items-center gap-2">

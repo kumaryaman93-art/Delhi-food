@@ -8,6 +8,11 @@ export interface Category {
   isActive: boolean;
 }
 
+export interface MenuVariant {
+  label: string;
+  price: number;
+}
+
 export interface MenuItem {
   id: string;
   categoryId: string;
@@ -20,6 +25,7 @@ export interface MenuItem {
   isFeatured: boolean;
   isNew?: boolean;
   displayOrder: number;
+  variants?: MenuVariant[];
 }
 
 export interface CategoryWithItems extends Category {
