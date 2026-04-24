@@ -33,7 +33,13 @@ const CATEGORY_BG: Record<string, string> = {
 const FALLBACK_BG = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80";
 
 export default async function HomePage() {
-  const categories = await getMenuCategories();
+  // Graceful fallback — page renders even if Firestore is temporarily unavailable
+  let categories: Awaited<ReturnType<typeof getMenuCategories>> = [];
+  try {
+    categories = await getMenuCategories();
+  } catch (err) {
+    console.error("[HomePage] Failed to load categories:", err);
+  }
 
   const stats = [
     { icon: <Star className="w-5 h-5" />, value: "4.2★", label: "Rating" },

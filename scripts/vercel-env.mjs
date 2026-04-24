@@ -34,6 +34,8 @@ const ENV_VARS = [
   { key: "RAZORPAY_KEY_SECRET",                      value: "JaQBKZCbAW485PnKX2A3GW3R" },
   { key: "NEXT_PUBLIC_RAZORPAY_KEY_ID",              value: "rzp_test_SfoPrdGT9NcMjd" },
   { key: "NEXTAUTH_SECRET",                          value: "dfj-nextauth-secret-dev-key-2024-local" },
+  { key: "NEXTAUTH_URL",                             value: "https://delhi-food.vercel.app" },
+  { key: "ADMIN_JWT_SECRET",                         value: "dfj-admin-jwt-secret-production-2024" },
 ];
 
 // ── Get project list ─────────────────────────────────────────────────────────
