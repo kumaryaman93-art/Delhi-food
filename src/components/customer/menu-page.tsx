@@ -6,7 +6,6 @@ import { useCartStore } from "@/store/cart";
 import { formatINR } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
-import VariantSelector from "@/components/customer/variant-selector";
 import { MenuVariant } from "@/types";
 
 interface MenuItem {
@@ -33,7 +32,6 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
   const [search, setSearch] = useState("");
   const [vegOnly, setVegOnly] = useState(false);
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id ?? "");
-  const [variantItem, setVariantItem] = useState<MenuItem | null>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pillsRef = useRef<HTMLDivElement>(null);
   const scrollingRef = useRef(false);
@@ -215,7 +213,6 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {cat.items.map((item) => {
                     const hasVariants = item.variants && item.variants.length > 0;
-                    // For variant items: show total qty across all variants
                     const qty = hasVariants
                       ? (item.variants ?? []).reduce((sum, v) => sum + getQty(item.id, v.label), 0)
                       : getQty(item.id);
@@ -226,82 +223,110 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
                     return (
                       <div
                         key={item.id}
-                        className="flex gap-3 rounded-2xl overflow-hidden"
+                        className="rounded-2xl overflow-hidden"
                         style={{ background: "white", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.04)" }}
                       >
-                        {/* Food image */}
-                        <div className="relative flex-shrink-0" style={{ width: "96px", height: "96px" }}>
-                          {item.imageUrl ? (
-                            <Image src={item.imageUrl} alt={item.name} fill unoptimized className="object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-4xl"
-                              style={{ background: "linear-gradient(135deg, #f0fdf4, #d1fae5)" }}>🍽️</div>
-                          )}
-                          <div className="absolute top-1.5 left-1.5">
-                            <div className={`w-4 h-4 rounded-sm border-2 ${item.isVeg ? "border-green-700 bg-green-500" : "border-red-700 bg-red-500"}`} />
-                          </div>
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0 py-3 pr-3">
-                          <div className="flex items-start gap-1 flex-wrap mb-0.5">
-                            {item.isFeatured && (
-                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: "#fef3c7", color: "#b45309" }}>⭐ Popular</span>
-                            )}
-                            {item.isNew && (
-                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: "#eff6ff", color: "#1d4ed8" }}>✨ New</span>
-                            )}
-                          </div>
-                          <h3 className="font-bold text-gray-900 text-sm leading-tight mb-0.5">{item.name}</h3>
-                          {item.description && (
-                            <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-1">{item.description}</p>
-                          )}
-
-                          {/* Variant size labels */}
-                          {hasVariants && (
-                            <div className="flex gap-1 flex-wrap mb-1">
-                              {(item.variants ?? []).map((v) => (
-                                <span key={v.label} className="text-xs px-1.5 py-0.5 rounded-md font-medium"
-                                  style={{ background: "#f0fdfa", color: "#0f766e" }}>
-                                  {v.label}: {formatINR(v.price)}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between mt-auto">
-                            <span className="font-black text-base" style={{ color: "#0d9488" }}>
-                              {hasVariants ? `From ${formatINR(minPrice)}` : formatINR(item.price)}
-                            </span>
-
-                            {/* ADD / CHOOSE button */}
-                            {hasVariants ? (
-                              <button
-                                onClick={() => setVariantItem(item)}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-bold text-white transition-transform active:scale-95"
-                                style={{ background: "linear-gradient(90deg, #0d9488, #0f766e)" }}>
-                                {qty > 0 ? `${qty} · Add` : "Choose"}
-                              </button>
-                            ) : qty === 0 ? (
-                              <button
-                                onClick={() => addItem({ id: item.id, itemId: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl, isVeg: item.isVeg })}
-                                className="flex items-center gap-1 px-4 py-1.5 rounded-xl text-sm font-bold text-white transition-transform active:scale-95"
-                                style={{ background: "linear-gradient(90deg, #0d9488, #0f766e)" }}>
-                                + Add
-                              </button>
+                        {/* ── Top row: image + name/desc ── */}
+                        <div className="flex gap-3">
+                          {/* Food image */}
+                          <div className="relative flex-shrink-0" style={{ width: "88px", height: "88px" }}>
+                            {item.imageUrl ? (
+                              <Image src={item.imageUrl} alt={item.name} fill unoptimized className="object-cover" loading="lazy" />
                             ) : (
-                              <div className="flex items-center gap-1.5">
-                                <button onClick={() => updateQuantity(item.id, qty - 1)}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-base"
-                                  style={{ background: "#0d9488" }}>−</button>
-                                <span className="font-black text-gray-900 w-5 text-center text-sm">{qty}</span>
-                                <button onClick={() => addItem({ id: item.id, itemId: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl, isVeg: item.isVeg })}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-base"
-                                  style={{ background: "#0d9488" }}>+</button>
+                              <div className="w-full h-full flex items-center justify-center text-3xl"
+                                style={{ background: "linear-gradient(135deg, #f0fdf4, #d1fae5)" }}>🍽️</div>
+                            )}
+                            <div className="absolute top-1.5 left-1.5">
+                              <div className={`w-4 h-4 rounded-sm border-2 ${item.isVeg ? "border-green-700 bg-green-500" : "border-red-700 bg-red-500"}`} />
+                            </div>
+                          </div>
+
+                          {/* Name + desc + single-price ADD */}
+                          <div className="flex-1 min-w-0 py-2.5 pr-3">
+                            <div className="flex items-start gap-1 flex-wrap mb-0.5">
+                              {item.isFeatured && (
+                                <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: "#fef3c7", color: "#b45309" }}>⭐ Popular</span>
+                              )}
+                              {item.isNew && (
+                                <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: "#eff6ff", color: "#1d4ed8" }}>✨ New</span>
+                              )}
+                            </div>
+                            <h3 className="font-bold text-gray-900 text-sm leading-tight">{item.name}</h3>
+                            {item.description && (
+                              <p className="text-xs text-gray-500 leading-relaxed line-clamp-1 mt-0.5">{item.description}</p>
+                            )}
+
+                            {/* Single-price item: price + ADD stepper */}
+                            {!hasVariants && (
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="font-black text-sm" style={{ color: "#0d9488" }}>{formatINR(item.price)}</span>
+                                {qty === 0 ? (
+                                  <button
+                                    onClick={() => addItem({ id: item.id, itemId: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl, isVeg: item.isVeg })}
+                                    className="flex items-center gap-1 px-4 py-1.5 rounded-xl text-sm font-bold text-white transition-transform active:scale-95"
+                                    style={{ background: "linear-gradient(90deg, #0d9488, #0f766e)" }}>
+                                    + Add
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center gap-1.5">
+                                    <button onClick={() => updateQuantity(item.id, qty - 1)}
+                                      className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-sm"
+                                      style={{ background: "#0d9488" }}>−</button>
+                                    <span className="font-black text-gray-900 w-5 text-center text-sm">{qty}</span>
+                                    <button onClick={() => addItem({ id: item.id, itemId: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl, isVeg: item.isVeg })}
+                                      className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-sm"
+                                      style={{ background: "#0d9488" }}>+</button>
+                                  </div>
+                                )}
                               </div>
                             )}
+
+                            {/* Variant item: "from ₹X" price hint */}
+                            {hasVariants && (
+                              <p className="text-xs font-semibold mt-1" style={{ color: "#0d9488" }}>
+                                From {formatINR(minPrice)}
+                              </p>
+                            )}
                           </div>
                         </div>
+
+                        {/* ── Inline variant rows (Half/Full or S/M/L) ── */}
+                        {hasVariants && (
+                          <div className="border-t border-gray-100 px-3 py-2 space-y-1.5">
+                            {(item.variants ?? []).map((v: MenuVariant) => {
+                              const vQty = getQty(item.id, v.label);
+                              const cartId = `${item.id}::${v.label}`;
+                              return (
+                                <div key={v.label} className="flex items-center justify-between">
+                                  {/* Label + price */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-gray-600 w-14">{v.label}</span>
+                                    <span className="font-black text-sm" style={{ color: "#0d9488" }}>{formatINR(v.price)}</span>
+                                  </div>
+                                  {/* Stepper */}
+                                  {vQty === 0 ? (
+                                    <button
+                                      onClick={() => addItem({ id: cartId, itemId: item.id, name: item.name, price: v.price, imageUrl: item.imageUrl, isVeg: item.isVeg, variant: v.label })}
+                                      className="px-4 py-1 rounded-lg text-xs font-bold text-white transition-transform active:scale-95"
+                                      style={{ background: "linear-gradient(90deg, #0d9488, #0f766e)" }}>
+                                      + Add
+                                    </button>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5">
+                                      <button onClick={() => updateQuantity(cartId, vQty - 1)}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-sm"
+                                        style={{ background: "#0d9488" }}>−</button>
+                                      <span className="font-black text-gray-900 w-5 text-center text-sm">{vQty}</span>
+                                      <button onClick={() => addItem({ id: cartId, itemId: item.id, name: item.name, price: v.price, imageUrl: item.imageUrl, isVeg: item.isVeg, variant: v.label })}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white text-sm"
+                                        style={{ background: "#0d9488" }}>+</button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -326,28 +351,6 @@ export default function MenuPageClient({ categories }: { categories: Category[] 
           </div>
         </div>
       </div>
-
-      {/* ── VARIANT SELECTOR MODAL ── */}
-      {variantItem && (
-        <VariantSelector
-          itemName={variantItem.name}
-          isVeg={variantItem.isVeg}
-          variants={variantItem.variants ?? []}
-          onClose={() => setVariantItem(null)}
-          onSelect={(v: MenuVariant) => {
-            const cartId = `${variantItem.id}::${v.label}`;
-            addItem({
-              id: cartId,
-              itemId: variantItem.id,
-              name: variantItem.name,
-              price: v.price,
-              imageUrl: variantItem.imageUrl,
-              isVeg: variantItem.isVeg,
-              variant: v.label,
-            });
-          }}
-        />
-      )}
 
       {/* ── FLOATING CART BAR (mobile only — desktop shows inline) ── */}
       {cartTotal > 0 && (
