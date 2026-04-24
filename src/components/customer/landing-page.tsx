@@ -172,37 +172,38 @@ export default function LandingPage() {
     return () => window.removeEventListener("mousemove", handle);
   }, []);
 
-  // After Google redirect, Firebase restores the signed-in user via persistence.
-  // onAuthStateChanged fires once that restoration is complete — more reliable
-  // than getRedirectResult which can lose state with Next.js router transitions.
+  // onAuthStateChanged can fire with null FIRST while Firebase is still
+  // processing the redirect result. We must NOT unsubscribe on null —
+  // keep listening until Firebase finishes and fires with the actual user.
   useEffect(() => {
-    let settled = false;
+    let done = false;
     setLoading(true);
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (settled) return;
-      settled = true;
+      if (done) return;
 
       if (firebaseUser) {
-        // User is signed in (came back from Google redirect OR already had a session)
+        // Got a user (from Google redirect OR existing session)
+        done = true;
+        unsubscribe();
         try {
           await createServerSession(firebaseUser);
-          router.push(returnTo);
-          router.refresh();
+          // Full page navigation — more reliable than router.push after OAuth redirect
+          window.location.href = returnTo;
         } catch (err) {
           console.error("Session creation failed:", err);
           setError("Sign-in failed. Please try again.");
           setLoading(false);
+          done = false; // allow retry
         }
       } else {
-        // No user — show the login form normally
+        // null — Firebase may still be processing redirect, keep listening.
+        // Only hide the spinner so the form is usable for email login.
         setLoading(false);
       }
-
-      unsubscribe();
     });
 
-    return () => { settled = true; unsubscribe(); };
+    return () => { done = true; unsubscribe(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
