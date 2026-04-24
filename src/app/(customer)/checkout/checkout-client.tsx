@@ -95,7 +95,7 @@ export default function CheckoutClient({ userName, userEmail }: Props) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+              items: items.map((i) => ({ id: i.id, itemId: i.itemId, name: i.name, price: i.price, quantity: i.quantity, variant: i.variant ?? null })),
               orderType,
               tableNumber,
               deliveryAddress,
@@ -131,8 +131,10 @@ export default function CheckoutClient({ userName, userEmail }: Props) {
         <h3 className="font-semibold text-gray-700 mb-3">Order Summary</h3>
         {items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm text-gray-600">
-            <span>{item.name} × {item.quantity}</span>
-            <span>{formatINR(item.price * item.quantity)}</span>
+            <span className="truncate mr-2">
+              {item.name}{item.variant ? ` (${item.variant})` : ""} × {item.quantity}
+            </span>
+            <span className="flex-shrink-0 font-medium">{formatINR(item.price * item.quantity)}</span>
           </div>
         ))}
         <div className="border-t border-gray-100 pt-2 space-y-1">
