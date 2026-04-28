@@ -160,7 +160,7 @@ export default function HomeHero() {
   const blobY = cursor.y * 0.015;
 
   return (
-    <section className="relative overflow-hidden" style={{ minHeight: "100svh", maxHeight: "100svh" }}>
+    <section className="relative overflow-hidden" style={{ minHeight: "100svh" }}>
 
       {/* Background */}
       <div className="absolute inset-0"
@@ -193,19 +193,48 @@ export default function HomeHero() {
 
       <FloatingFoods />
 
-      {/* Content — mobile: single column, desktop: two column */}
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-center min-h-screen px-6 py-12 max-w-5xl mx-auto gap-10">
+      {/* Content — mobile: mascot first, desktop: balanced two column */}
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-center min-h-screen px-6 pt-24 pb-16 md:py-16 max-w-5xl mx-auto gap-7 md:gap-10">
+
+        {/* Mascot — top on mobile, right side on desktop */}
+        <div className={`order-1 md:order-2 flex flex-col items-center gap-3 flex-shrink-0 transition-all duration-700 delay-200 ${mounted ? "opacity-100 scale-100" : "opacity-0 scale-90"}`}>
+          <div
+            className="rounded-full"
+            style={{
+              filter: "drop-shadow(0 16px 40px rgba(0,0,0,0.6))",
+              animation: "bobble 4s ease-in-out infinite",
+            }}
+          >
+            <PizzaMascot size={150} />
+          </div>
+
+          {/* Stats row under mascot */}
+          <div className="hidden sm:grid grid-cols-3 gap-2 mt-1">
+            {[
+              { val: "185+", label: "Dishes" },
+              { val: "756+", label: "Reviews" },
+              { val: "2015", label: "Est." },
+            ].map((s) => (
+              <div key={s.label}
+                className="flex flex-col items-center py-2 px-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <span className="text-base font-black text-white">{s.val}</span>
+                <span className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Left — copy */}
-        <div className={`flex flex-col items-center md:items-start text-center md:text-left flex-1 transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+        <div className={`order-2 md:order-1 flex flex-col items-center md:items-start text-center md:text-left flex-1 transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
 
           {/* Pure veg badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-5"
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 md:mb-5"
             style={{ background: "rgba(13,148,136,0.2)", border: "1px solid rgba(13,148,136,0.45)", color: "#5eead4" }}>
             🌿 100% Pure Vegetarian
           </div>
 
-          <h1 className="text-5xl md:text-6xl font-black text-white leading-tight mb-3"
+          <h1 className="text-4xl min-[380px]:text-5xl md:text-6xl font-black text-white leading-tight mb-3"
             style={{ fontFamily: "'Georgia', serif", textShadow: "0 2px 20px rgba(0,0,0,0.5)" }}>
             Delhi Food<br />
             <span style={{ color: "#fbbf24" }}>Junction</span>
@@ -214,12 +243,12 @@ export default function HomeHero() {
           <p className="text-teal-300 text-lg font-medium mb-1 tracking-wide">
             Ludhiana&apos;s Favourite Veg Kitchen
           </p>
-          <p className="text-gray-400 text-sm mb-6 max-w-sm leading-relaxed">
+          <p className="text-gray-400 text-sm mb-5 md:mb-6 max-w-sm leading-relaxed">
             From sizzling Chinese snacks to hearty North Indian mains — crafted fresh every day, served with love since 2015.
           </p>
 
           {/* Rating badges */}
-          <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-8">
+          <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-6 md:mb-8">
             {[
               { icon: <Star className="w-3 h-3" fill="currentColor" />, text: "4.2 Rated", color: "#fbbf24" },
               { icon: "🌿", text: "Pure Veg", color: "#34d399" },
@@ -235,7 +264,7 @@ export default function HomeHero() {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex gap-3 flex-wrap justify-center md:justify-start mb-8">
+          <div className="flex gap-3 flex-wrap justify-center md:justify-start mb-6 md:mb-8">
             <Link href="/menu"
               className="flex items-center gap-2 px-8 py-3.5 rounded-full font-bold text-white text-base transition-transform active:scale-95 hover:opacity-90"
               style={{ background: "linear-gradient(90deg, #0d9488, #d97706)", boxShadow: "0 4px 24px rgba(13,148,136,0.45)" }}>
@@ -253,29 +282,6 @@ export default function HomeHero() {
             style={{ color: "rgba(255,255,255,0.35)" }}>
             <MapPin className="w-3 h-3" />
             <span>Netaji Nagar, Salem Tabri, Ludhiana · 099147 55509</span>
-          </div>
-        </div>
-
-        {/* Right — mascot */}
-        <div className={`flex flex-col items-center gap-4 flex-shrink-0 transition-all duration-700 delay-200 ${mounted ? "opacity-100 scale-100" : "opacity-0 scale-90"}`}>
-          <div style={{ filter: "drop-shadow(0 16px 40px rgba(0,0,0,0.6))", animation: "bobble 4s ease-in-out infinite" }}>
-            <PizzaMascot size={180} />
-          </div>
-
-          {/* Stats row under mascot */}
-          <div className="grid grid-cols-3 gap-2 mt-2">
-            {[
-              { val: "185+", label: "Dishes" },
-              { val: "756+", label: "Reviews" },
-              { val: "2015", label: "Est." },
-            ].map((s) => (
-              <div key={s.label}
-                className="flex flex-col items-center py-2 px-3 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                <span className="text-base font-black text-white">{s.val}</span>
-                <span className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{s.label}</span>
-              </div>
-            ))}
           </div>
         </div>
       </div>
