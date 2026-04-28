@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { adminDb } from "@/lib/firebase-admin";
 import { notFound, redirect } from "next/navigation";
 import OrderTrackingLive from "@/components/customer/order-tracking-live";
+import { normalizeOrderDocument } from "@/lib/firestore/orders";
 
 export default async function OrderDetailPage({ params, searchParams }: {
   params: { id: string };
@@ -19,39 +20,27 @@ export default async function OrderDetailPage({ params, searchParams }: {
   // Ensure this order belongs to the logged-in user
   if (data.userId !== session.uid) notFound();
 
+  const normalizedOrder = normalizeOrderDocument(orderDoc.id, data);
+  const payment = normalizedOrder.payment
+    ? {
+        status: normalizedOrder.payment.status,
+        method: normalizedOrder.payment.method ?? null,
+        paidAt: normalizedOrder.createdAt,
+        createdAt: normalizedOrder.createdAt,
+      }
+    : null;
+
   const order = {
-    id: orderDoc.id,
-    orderNumber: data.orderNumber ?? orderDoc.id.slice(-6).toUpperCase(),
-    status: data.status,
-    orderType: data.orderType,
-    tableNumber: data.tableNumber ?? null,
-    deliveryAddress: data.deliveryAddress ?? null,
-    specialInstructions: data.specialInstructions ?? null,
-    subtotal: data.subtotal ?? 0,
-    tax: data.tax ?? 0,
-    packagingFee: data.packagingFee ?? 0,
-    total: data.total ?? 0,
-    etaMinutes: data.etaMinutes ?? null,
-    createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-    confirmedAt: data.confirmedAt?.toDate?.()?.toISOString() ?? null,
-    readyAt: data.readyAt?.toDate?.()?.toISOString() ?? null,
-    completedAt: data.completedAt?.toDate?.()?.toISOString() ?? null,
-    etaSetAt: data.etaSetAt?.toDate?.()?.toISOString() ?? null,
-    items: (data.items ?? []).map((i: Record<string, unknown>) => ({
-      id: i.id,
-      name: i.name,
-      price: i.price,
-      quantity: i.quantity,
-      total: (i.price as number) * (i.quantity as number),
-    })),
-    payment: data.paymentId ? {
-      id: data.paymentId,
-      amount: data.total,
-      status: "PAID",
-      method: null,
-      paidAt: data.createdAt?.toDate?.()?.toISOString() ?? null,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() ?? null,
-    } : null,
+    ...normalizedOrder,
+    tableNumber: normalizedOrder.tableNumber ?? null,
+    deliveryAddress: normalizedOrder.deliveryAddress ?? null,
+    specialInstructions: normalizedOrder.specialInstructions ?? null,
+    etaMinutes: normalizedOrder.etaMinutes ?? null,
+    etaSetAt: normalizedOrder.etaSetAt ?? null,
+    confirmedAt: normalizedOrder.confirmedAt ?? null,
+    readyAt: normalizedOrder.readyAt ?? null,
+    completedAt: normalizedOrder.completedAt ?? null,
+    payment,
     user: { name: session.name ?? "", email: session.email ?? "", phone: null },
   };
 
